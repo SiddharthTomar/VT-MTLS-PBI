@@ -30,6 +30,7 @@ def pssmtodf ():
 	tempindex = ("pssm.txt")
 	file = open (tempindex, 'r')
 	lines = file.readlines()
+	templines = lines
 	if (counter == 0):
 		lines = lines[2:-4]
 		lines[0] = "Index Nucleotide A   R   N   D   C   Q   E   G   H   I   L   K   M   F   P   S   T   W   Y   V   AA   RR   NN   DD   CC   QQ   EE   GG   HH   II   LL   KK   MM   FF   PP   SS   TT   WW   YY   VV NA NA"
@@ -53,6 +54,31 @@ def pssmtodf ():
 	print (idx)
 	cols = [ "{}_{}".format(c,str(i)) for i in range(21) for c in df.columns]
 	df2 = pd.DataFrame(vals[idx.flatten()].reshape(len(df)-21,df.shape[1]*21), columns=cols)
+	print (df2.isnull().values.any())
+	if (df2.isnull().values.any() == True):
+		store_lines = []
+		lines = templines[2:-5]
+		lines[0] = "Index Nucleotide A   R   N   D   C   Q   E   G   H   I   L   K   M   F   P   S   T   W   Y   V   AA   RR   NN   DD   CC   QQ   EE   GG   HH   II   LL   KK   MM   FF   PP   SS   TT   WW   YY   VV NA NA"
+		counter = counter + 1
+		for k in lines:
+			k = re.sub("\s+", ",", k.strip())
+			store_lines.append(k)
+		#print (i)
+		#File for debugging in case of any problems with input
+		outfile = open('pssmfinal-debug.csv', 'w')
+		for item in store_lines:
+			outfile.write("%s\n" % item)
+		outfile.close()
+		df = pd.read_csv("pssmfinal-debug.csv")
+		keep_cols = ["A","R","N","D","C","Q","E","G","H","I","L","K","M","F","P","S","T","W","Y","V"]
+		df = df[keep_cols]	
+		#The window-maker
+		vals = df.values
+		idx = np.tile(np.arange(21), (len(df) - 21,1)) + np.arange(len(df) - 21).reshape(-1,1)
+		#printing the refrence array for debugging - Slightly unpredictable behaviour. Check input if last row/column is less than the sequence lenght
+		print (idx)
+		cols = [ "{}_{}".format(c,str(i)) for i in range(21) for c in df.columns]
+		df2 = pd.DataFrame(vals[idx.flatten()].reshape(len(df)-21,df.shape[1]*21), columns=cols)
 	df2.to_csv("csv1.csv", index=False)
 	return (df2)
 
