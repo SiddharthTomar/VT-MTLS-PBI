@@ -22,6 +22,44 @@ from sklearn import cross_validation
 from sklearn.externals import joblib
 from sklearn import preprocessing
 from sklearn.model_selection import cross_val_predict
+from sklearn.metrics import confusion_matrix
+from sklearn.cross_validation import cross_val_score
+import itertools
+#--------------------------------------------------------------------------------------------------------------------------------
+#http://stackoverflow.com/questions/40169152/confusion-matrix-for-10-fold-cross-validation-in-scikit-learn
+
+def plot_confusion_matrix(cm, classes,
+                          normalize=False,
+                          title='Confusion matrix',
+                          cmap=plt.cm.Blues):
+    """
+    This function prints and plots the confusion matrix.
+    Normalization can be applied by setting `normalize=True`.
+    """
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    plt.title(title)
+    plt.colorbar()
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes, rotation=45)
+    plt.yticks(tick_marks, classes)
+
+    if normalize:
+        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+        print("Normalized confusion matrix")
+    else:
+        print('Confusion matrix, without normalization')
+
+    print(cm)
+
+    thresh = cm.max() / 2.
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        plt.text(j, i, float("{0:.2f}".format(cm[i, j])),
+                 horizontalalignment="center",
+                 color="white" if cm[i, j] > thresh else "black")
+
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
 
 #--------------------------------------------------------------------------------------------------------------------------------
 def show_values(pc, fmt="%.2f", **kw):
@@ -268,6 +306,7 @@ def matrix (wordlength,length,instance):
 	toplogy_list = []
 	toplogy_w = []
 	tempd = ''
+	counter = 0
 	z = wordpro(wordlength)
 	filein = open('prototext.txt','r')
 	for line in filein:
@@ -300,21 +339,67 @@ def matrix (wordlength,length,instance):
 	max_abs_scaler = preprocessing.MaxAbsScaler()
 	vec_train = max_abs_scaler.fit_transform(vec_train)
 	print (vectorizer.get_feature_names())
-	target = np.asarray(toplogy_list)
-	estimator = svm.SVC(kernel='rbf')
-	gammas = np.logspace(-6, -1, 10)
-	X_train, X_test, y_train, y_test = train_test_split(vec_train, target, test_size=0.2, random_state=0)
-	cv = ShuffleSplit(X_train.shape[0], n_iter=10, test_size=0.2, random_state=0)
-	gammas = np.logspace(-6, -1, 10)
-	classifier = GridSearchCV(estimator=estimator, cv=cv, param_grid=dict(gamma=gammas))	
-	predicted = cross_val_predict(classifier, vec_train, target, cv=10)
-	fig, ax = plt.subplots()
-	ax.scatter(y, predicted)
-	ax.plot([y.min(), y.max()], [y.min(), y.max()], 'k--', lw=4)
-	ax.set_xlabel('Measured')
-	ax.set_ylabel('Predicted')
-	plt.savefig('All_plot_cv_report.pdf', dpi=200, format='pdf', bbox_inches='tight')
+	target = np.asarray(toplogy_list)	
+	estimator = svm.SVC(kernel='rbf',gamma = 0.027826, class_weight="balanced")
+	classifier = estimator
+	cv = cross_validation.KFold(22165, n_folds=10,shuffle=False,random_state=None)
+	class_names = ['i','o','P','L']
+	for train_index, test_index in cv:
+		counter = counter + 1
+		X_tr, X_tes = vec_train[train_index], vec_train[test_index]
+		y_tr, y_tes = target[train_index],target[test_index]
+		clf = classifier.fit(X_tr, y_tr) 
+
+		y_pred=clf.predict(X_tes)
+		cnf_matrix = confusion_matrix(y_tes, y_pred)
+		np.set_printoptions(precision=2)
+		print (cnf_matrix)
 	
+		# Plot non-normalized confusion matrix
+		plt.figure()
+		plot_confusion_matrix(cnf_matrix, classes=class_names,title='Confusion matrix, without normalization')
+		fileName = "Plot_wnr-%04d.pdf" % counter
+		plt.savefig(fileName, dpi=200, format='pdf', bbox_inches='tight')
+		# Plot normalized confusion matrix
+		plt.figure()
+		plot_confusion_matrix(cnf_matrix, classes=class_names, normalize=True,title='Normalized confusion matrix')
+		fileName = "Plot_nr-%04d.pdf" % counter
+		plt.savefig(fileName, dpi=200, format='pdf', bbox_inches='tight')
+		fileName = "Plot_cr_w-%04d.pdf" % counter
+		plot_classification_report(classification_report(y_pred, y_tes))
+		plt.savefig(fileName, dpi=200, format='pdf', bbox_inches='tight')
+		plt.close()
+	
+	counter = 0
+	estimator = svm.SVC(kernel='rbf',gamma = 0.027826)
+	classifier = estimator
+	cv = cross_validation.KFold(22165, n_folds=10,shuffle=False,random_state=None)
+	class_names = ['i','o','P','L']
+	for train_index, test_index in cv:
+		counter = counter + 1
+		X_tr, X_tes = vec_train[train_index], vec_train[test_index]
+		y_tr, y_tes = target[train_index],target[test_index]
+		clf = classifier.fit(X_tr, y_tr) 
+
+		y_pred=clf.predict(X_tes)
+		cnf_matrix = confusion_matrix(y_tes, y_pred)
+		np.set_printoptions(precision=2)
+		print (cnf_matrix)
+	
+		# Plot non-normalized confusion matrix
+		plt.figure()
+		plot_confusion_matrix(cnf_matrix, classes=class_names,title='Confusion matrix, without normalization')
+		fileName = "uw_Plot_wnr-%04d.pdf" % counter
+		plt.savefig(fileName, dpi=200, format='pdf', bbox_inches='tight')
+		# Plot normalized confusion matrix
+		plt.figure()
+		plot_confusion_matrix(cnf_matrix, classes=class_names, normalize=True,title='Normalized confusion matrix')
+		fileName = "uw_Plot_nr-%04d.pdf" % counter
+		plt.savefig(fileName, dpi=200, format='pdf', bbox_inches='tight')
+		fileName = "Plot_cr_uw-%04d.pdf" % counter
+		plot_classification_report(classification_report(y_pred, y_tes))
+		plt.savefig(fileName, dpi=200, format='pdf', bbox_inches='tight')
+		plt.close()
 
 window_size = [21] 
 linebreaker ('membrane-beta_4state.3line.txt')
